@@ -25,23 +25,29 @@
 
         }
 
+        #min{
+           padding-left: 1%;
+        }
+
+        #max{
+            padding-left: 1.5%;
+        }
+
+
         #wrapper-legend{
-            display: inline-block;
-            list-style: none;
-            margin: 2%;
-            padding: 0 0 0 25%;
+            padding-left: 10%;
         }
 
         .heatmap-legend {
             display: inline-block;
             list-style: none;
-            margin: 1%;
+            margin-left: 5%;
             padding: 0;
         }
 
         .heatmap-legend-item {
-            display: inline-block;
-            width: 40px;
+            /*display: inline-block;*/
+            width: 60px;
             height: 20px;
             background-color: #000000;
         }
@@ -87,9 +93,15 @@
 </figure>
 
 
+<figure class="sign">
+    <p><canvas id="canvas-g" width="300px" height="300px" ></canvas></p>
+    <figcaption>Преобразование Хаара</figcaption>
+
+</figure>
+
 
 <figure class="sign">
-    <p><canvas id="canvas1" width="300px" height="300px" ></canvas></p>
+    <p><canvas id="canvas-hm" width="300px" height="300px" ></canvas></p>
     <figcaption>Heat map</figcaption>
 
 </figure>
@@ -98,8 +110,8 @@
 
 <br><button id="button">Get heat map</button>
 <div id="wrapper-legend" style="width: 100% ">
-
-    <p style="display: inline-block">Min</p>
+    <p1 id="min">Наименьшая разница</p1>
+    <br>
     <ol class="heatmap-legend" >
         <li class="heatmap-legend-item"></li>
         <li class="heatmap-legend-item"></li>
@@ -112,18 +124,23 @@
         <li class="heatmap-legend-item"></li>
         <li class="heatmap-legend-item"></li>
     </ol>
-    <p style="display: inline-block">Max</p>
+    <br>
+    <p id="max" style="display: inline-block">Наибольшая разница</p>
 </div>
 
 </body>
 
 <script>
-    const grey = document.getElementById("grey");
-    const canv1 = document.getElementById("canvas1");
+    const canvas_g = document.getElementById("canvas-g");
+    const ctx_g = canvas_g.getContext("2d");
+
     const button = document.getElementById("button");
+
     const originalImg = document.getElementById("original");
     const photoshopImg = document.getElementById("photoshop");
-    const ctx_1 = canv1.getContext("2d");
+
+    const canvas_hm = document.getElementById("canvas-hm");
+    const ctx_2 = canvas_hm.getContext("2d");
 
     button.addEventListener("click", () => {
         buildHeatMap();
@@ -141,32 +158,42 @@
     origImg.onload = () => {
         createImageBitmap(originalImg, {resizeWidth: 300, resizeHeight: 300})
             .then(result => {
-                ctx_1.drawImage(result, 0, 0, 300, 300);
-                originalImgBitMap = ctx_1.getImageData(0, 0, 300, 300);
+                ctx_2.drawImage(result, 0, 0, 300, 300);
+                originalImgBitMap = ctx_2.getImageData(0, 0, 300, 300);
+                ctx_2.clearRect(0, 0, 300, 300);
             });
     }
 
     photoshImg.onload = () => {
         createImageBitmap(photoshImg, {resizeWidth: 300, resizeHeight: 300})
             .then(result => {
-                ctx_1.drawImage(result, 0, 0, 300, 300);
-                photoshopImgBitMap = ctx_1.getImageData(0, 0, 300, 300);
-                ctx_1.clearRect(0, 0, 300, 300);
+                ctx_g.drawImage(result, 0, 0, 300, 300);
+                photoshopImgBitMap = ctx_g.getImageData(0, 0, 300, 300);
+                //ctx_g.clearRect(0, 0, 300, 300);
             });
     }
 
+    const differences = [];
     function buildHeatMap() {
+        //TODO получить обесцвеч. изобр. Вставить.
         const origImg = getImage(originalImgBitMap);
         const photoshImg = getImage(photoshopImgBitMap);
-        const differences = []
-        const heatMap = []
+
+        //const differences = [];
+        const heatMap = [];
+
         let min = 255, max = -1;
         for (let i = 0; i < 300; i++) {
             heatMap.push([]);
             for (let j = 0; j < 300; j++) {
-                const diff = Math.abs(origImg[i][j].r - photoshImg[i][j].r) + Math.abs(origImg[i][j].g - photoshImg[i][j].g) + Math.abs(origImg[i][j].b - photoshImg[i][j].b);
-                min = diff < min ? diff : min;
-                max = diff > max ? diff : max;
+                //Суммы разности по каналам R G B.
+                const diff
+                    = Math.abs(origImg[i][j].r - photoshImg[i][j].r)
+                    + Math.abs(origImg[i][j].g - photoshImg[i][j].g)
+                    + Math.abs(origImg[i][j].b - photoshImg[i][j].b);
+
+                min = diff < min ? diff : min; //Нашли минимум
+                max = diff > max ? diff : max; //Нашли максимум
                 differences.push(diff)
                 heatMap[i].push(0);
             }
@@ -183,7 +210,7 @@
                 }
             }
 
-        ctx_1.putImageData(new ImageData(toImageData(heatMap), 300, 300), 0, 0);
+        ctx_2.putImageData(new ImageData(toImageData(heatMap), 300, 300), 0, 0);
     }
 
     function getImage(image) {
@@ -207,17 +234,18 @@
     function toImageData(data) {
         const rows = data.length;
         const columns = data[0].length;
-        const res = new Uint8ClampedArray(4 * rows * columns);
+        const image = new Uint8ClampedArray(4 * rows * columns);
         for (let i = 0; i < rows; i++) {
             for (let j = 0; j < columns; j++) {
-                res.set([data[i][j].r, data[i][j].g, data[i][j].b, data[i][j].a], i * columns * 4 + j * 4)
+                image.set([data[i][j].r, data[i][j].g, data[i][j].b, data[i][j].a], i * columns * 4 + j * 4)
             }
         }
-        return res;
+        return image;
     }
 
     const maxDifferenceColor = [255, 0, 0];
     const minDifferenceColor = [0, 255, 0];
+
 
     //Для вывода легенды о тепловой карте
     const legendList = document.querySelector('.heatmap-legend');
@@ -225,12 +253,13 @@
 
     let i = 0;
     for (const child of children) {
-        const [r, g, b] = getHmColor(i / children.length);
+        const [r, g, b] = getlegendColor(i / children.length);
         child.style.background = `rgba(${r}, ${g}, ${b}, 255)`;
+        //child.innerHTML+=i+2;
         i++;
     }
 
-    function getHmColor(differenceCoefficient) {
+    function getlegendColor(differenceCoefficient) {
         if (differenceCoefficient >= 1) return [...maxDifferenceColor];
         if (differenceCoefficient <= 0) return [...minDifferenceColor];
 
